@@ -1,8 +1,8 @@
 /*
  * CSE 351 Lab 5 (Dynamic Storage Allocator)
  *
- * Name(s):  
- * NetID(s): 
+ * Name(s):  Landon Davidson
+ * NetID(s): landond
  *
  * NOTES:
  *  - Explicit allocator with an explicit free-list
