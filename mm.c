@@ -364,37 +364,55 @@ void* mm_malloc(size_t size) {
     // Round up for proper alignment.
     req_size = ALIGNMENT * ((size + ALIGNMENT - 1) / ALIGNMENT);
   }
-
-  // Find a large enough free block, if it doesn't exist request more space and then search again
+  // Find a large enough free block and remove from free list, if it doesn't exist request more space and then search again
   ptr_free_block = search_free_list(req_size);
   if (ptr_free_block == NULL) {
       request_more_space(req_size);
       ptr_free_block = search_free_list(req_size);
   }
-  // Split free block if larger than necessary
+  remove_free_block(ptr_free_block);
   block_size = SIZE(ptr_free_block->size_and_tags);
-  if (block_size > req_size) {
+  // Split free block if larger than necessary
+  if (block_size - req_size > MIN_BLOCK_SIZE) {
       block_info* new_free_block = (block_info*) UNSCALED_POINTER_ADD(ptr_free_block, req_size);
-      new_free_block->size_and_tags = ((block_size - req_size) | TAG_PRECEDING_USED) & ~TAG_USED;
-      size_t* footer = (size_t*) UNSCALED_POINTER_ADD(new_free_block, SIZE(new_free_block->size_and_tags)) - 1;
+      new_free_block->size_and_tags = ((block_size - req_size - sizeof(size_t)) | TAG_PRECEDING_USED) & ~TAG_USED;
+      size_t* footer = ((size_t*) UNSCALED_POINTER_ADD(new_free_block, SIZE(new_free_block->size_and_tags))) - 1;
       *footer = new_free_block->size_and_tags;
       insert_free_block(new_free_block);
+      ; //TODO remove this debugging line
+  // Else change the preceding tag used bit on the used block neighboring this block
+  } else {
+      req_size = block_size;
+      block_info* next_block = UNSCALED_POINTER_ADD(ptr_free_block, req_size);
+      next_block->size_and_tags |= TAG_PRECEDING_USED;
   }
-
-  // Change tag used bit to one and return the ptr plus sizeof(size_t) so it points to the payload)
-  ptr_free_block->size_and_tags |= TAG_USED;
+  // Set new blocks size
+  ptr_free_block->size_and_tags = req_size;
+  // Change tag used and preceding used bits to one and return the ptr plus sizeof(size_t) so it points to the payload
+  ptr_free_block->size_and_tags |= TAG_USED + TAG_PRECEDING_USED;
   return UNSCALED_POINTER_ADD(ptr_free_block, sizeof(size_t));
 }
 
 
 /* Free the block referenced by ptr. */
 void mm_free(void* ptr) {
-  size_t payload_size;
-  block_info* block_to_free;
-  block_info* following_block;
-  // TODO: Implement mm_free.  You can change or remove the declarations
-  // above.  They are included as minor hints.
-
+    size_t payload_size;
+    block_info* block_to_free;
+    block_info* following_block;
+    // Define variables
+    block_to_free = (block_info*) ptr;
+    following_block = block_to_free->next;
+    payload_size = SIZE(block_to_free->size_and_tags);
+    // Coalesce block_to_free now that its header and footer are properly defined
+    coalesce_free_block(block_to_free);
+    // Set the tag used bit to 0 in the block_to_free in the header and create footer
+    block_to_free->size_and_tags &= ~TAG_USED;
+    size_t* footer = ((size_t*) UNSCALED_POINTER_ADD(block_to_free, payload_size)) - 1;
+    *footer = block_to_free->size_and_tags;
+    // Set the tag preceding used bit to 0 for the following_block
+    following_block->size_and_tags &= ~TAG_PRECEDING_USED;
+    // Add newly freed block_to_free to free list
+    insert_free_block(block_to_free);
 }
 
 
