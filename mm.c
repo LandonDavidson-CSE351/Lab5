@@ -315,7 +315,7 @@ int mm_init() {
   first_free_block = (block_info*) UNSCALED_POINTER_ADD(mem_heap_lo(), WORD_SIZE);
 
   // Total usable size is full size minus heap-header and heap-footer words.
-  // NOTE: These are different than the "header" and "footer" of a block!
+  // NOTE: These are different from the "header" and "footer" of a block!
   //  - The heap-header is a pointer to the first free block in the free list.
   //  - The heap-footer is the end-of-heap indicator (used block with size 0).
   total_size = init_size - WORD_SIZE - WORD_SIZE;
@@ -340,7 +340,7 @@ int mm_init() {
 // TOP-LEVEL ALLOCATOR INTERFACE ------------------------------------
 
 /*
- * Allocate a block of size size and return a pointer to it. If size is zero,
+ * Allocate a block of *size* size and return a pointer to it. If size is zero,
  * returns NULL.
  */
 void* mm_malloc(size_t size) {
@@ -365,10 +365,25 @@ void* mm_malloc(size_t size) {
     req_size = ALIGNMENT * ((size + ALIGNMENT - 1) / ALIGNMENT);
   }
 
-  // TODO: Implement mm_malloc.  You can change or remove any of the
-  // above code.  It is included as a suggestion of where to start.
-  // You will want to replace this return statement...
-  return NULL;
+  // Find a large enough free block, if it doesn't exist request more space and then search again
+  ptr_free_block = search_free_list(req_size);
+  if (ptr_free_block == NULL) {
+      request_more_space(req_size);
+      ptr_free_block = search_free_list(req_size);
+  }
+  // Split free block if larger than necessary
+  block_size = SIZE(ptr_free_block->size_and_tags);
+  if (block_size > req_size) {
+      block_info* new_free_block = (block_info*) UNSCALED_POINTER_ADD(ptr_free_block, req_size);
+      new_free_block->size_and_tags = ((block_size - req_size) | TAG_PRECEDING_USED) & ~TAG_USED;
+      size_t* footer = (size_t*) UNSCALED_POINTER_ADD(new_free_block, SIZE(new_free_block->size_and_tags)) - 1;
+      *footer = new_free_block->size_and_tags;
+      insert_free_block(new_free_block);
+  }
+
+  // Change tag used bit to one and return the ptr plus sizeof(size_t) so it points to the payload)
+  ptr_free_block->size_and_tags |= TAG_USED;
+  return UNSCALED_POINTER_ADD(ptr_free_block, sizeof(size_t));
 }
 
 
@@ -377,7 +392,7 @@ void mm_free(void* ptr) {
   size_t payload_size;
   block_info* block_to_free;
   block_info* following_block;
-  // TODO: Implement mm_free.  You can change or remove the declaraions
+  // TODO: Implement mm_free.  You can change or remove the declarations
   // above.  They are included as minor hints.
 
 }
