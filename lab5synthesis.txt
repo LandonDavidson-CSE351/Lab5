@@ -6,14 +6,14 @@ NetID(s): landond
 
 
 -----------------------------------------------------------
-1) Alignment: 
-   Reasoning:
+1) Alignment: 16 bytes
+   Reasoning: I know the alignment is 16 bytes because if I malloc 25 bytes (the smallest payload that doesn't create a minimum size block), the next block gets placed 48 bytes after the first. Since we know the first block is larger than the minimum block size of 32 bytes that means the memory implementation is padding the blocks to align them to 16 bytes, which 48 is the next multiple of.
 
 
 
 -----------------------------------------------------------
-2) Boundary Tag Size:  
-   Reasoning:
+2) Boundary Tag Size:  8 bytes
+   Reasoning: The boundary tag size (just the header) is 8 bytes because of you malloc a block of 24 bytes or less the total block will always be 32 bytes, the minimum block size. But if you malloc(25) it creates a block of 48 bytes, meaning 24 + block size = 32 bytes, which comes out to 8 bytes.
 
 
 
