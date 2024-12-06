@@ -399,19 +399,19 @@ void mm_free(void* ptr) {
     block_info* block_to_free;
     block_info* following_block;
     // Define variables
-    block_to_free = (block_info*) ptr;
-    following_block = block_to_free->next;
+    block_to_free = (block_info*) UNSCALED_POINTER_SUB(ptr, sizeof(size_t));
     payload_size = SIZE(block_to_free->size_and_tags);
-    // Coalesce block_to_free now that its header and footer are properly defined
-    coalesce_free_block(block_to_free);
-    // Set the tag used bit to 0 in the block_to_free in the header and create footer
-    block_to_free->size_and_tags &= ~TAG_USED;
-    size_t* footer = ((size_t*) UNSCALED_POINTER_ADD(block_to_free, payload_size)) - 1;
-    *footer = block_to_free->size_and_tags;
+    following_block = (block_info*) UNSCALED_POINTER_ADD(block_to_free, payload_size);
     // Set the tag preceding used bit to 0 for the following_block
     following_block->size_and_tags &= ~TAG_PRECEDING_USED;
+    // Set the tag used bit to 0 in the block_to_free in the header and create footer
+    block_to_free->size_and_tags &= ~TAG_USED;
+    size_t* footer = ((size_t*) UNSCALED_POINTER_ADD(block_to_free, SIZE(block_to_free->size_and_tags) - 8));
+    *footer = block_to_free->size_and_tags;
     // Add newly freed block_to_free to free list
     insert_free_block(block_to_free);
+    // Coalesce block_to_free now that its header and footer are properly defined
+    coalesce_free_block(block_to_free);
 }
 
 
