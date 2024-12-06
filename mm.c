@@ -375,11 +375,10 @@ void* mm_malloc(size_t size) {
   // Split free block if larger than necessary
   if (block_size - req_size > MIN_BLOCK_SIZE) {
       block_info* new_free_block = (block_info*) UNSCALED_POINTER_ADD(ptr_free_block, req_size);
-      new_free_block->size_and_tags = ((block_size - req_size - sizeof(size_t)) | TAG_PRECEDING_USED) & ~TAG_USED;
-      size_t* footer = ((size_t*) UNSCALED_POINTER_ADD(new_free_block, SIZE(new_free_block->size_and_tags))) - 1;
+      new_free_block->size_and_tags = ((block_size - req_size) | TAG_PRECEDING_USED) & ~TAG_USED;
+      size_t* footer = ((size_t*) UNSCALED_POINTER_ADD(new_free_block, SIZE(new_free_block->size_and_tags) - 8));
       *footer = new_free_block->size_and_tags;
       insert_free_block(new_free_block);
-      ; //TODO remove this debugging line
   // Else change the preceding tag used bit on the used block neighboring this block
   } else {
       req_size = block_size;
